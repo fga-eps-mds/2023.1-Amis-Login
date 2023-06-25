@@ -9,6 +9,7 @@ from fastapi import APIRouter, Form, Header, HTTPException, status
 from interfaces.controllers import socialWorkersService
 from interfaces.controllers import studentService
 from interfaces.controllers import teacherService
+from interfaces.controllers import supervisorService
 
 routerLoginSocialWorker = APIRouter(
     prefix="/login",
@@ -149,3 +150,46 @@ def logout(refresh_token: str = Header(...)):
     teacherService.delete_refresh_token(refresh_token)
 
     return {"message": "Logout realizado com sucesso"}
+
+routerLoginSupervisor = APIRouter(
+    prefix="/login",
+    tags=["login: supervisor"],
+    responses={404: {"description": "Not found"}},
+)
+
+@routerLoginSupervisor.post("/supervisor/")
+async def login(username: str = Form(...), password: str = Form(...)):
+    access_token, refresh_token = supervisorService.login(
+        username=username, password=password
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+@routerLoginSupervisor.get("/supervisor/token", status_code=201)
+async def verificarToken(authorization: str = Header(...)):
+    supervisor = supervisorService.verifyToken(authorization)
+    supervisor.senha = None
+    return supervisor
+
+@routerLoginSupervisor.post("/supervisor/token/refresh", status_code=201)
+async def refreshToken(refresh_token: str = Header(...)):
+    tokens = supervisorService.refreshSession(refresh_token=refresh_token)
+    if tokens:
+        return {
+            "access_token": tokens[0],
+            "refresh_token": tokens[1],
+            "token_type": "bearer",
+        }
+
+    raise HTTPException(401, "Not Allowed")
+
+@routerLoginSupervisor.post("/supervisor/logout")
+def logout(refresh_token: str = Header(...)):
+    supervisorService.delete_refresh_token(refresh_token)
+
+    return {"message": "Logout realizado com sucesso"}
+
